@@ -155,6 +155,56 @@ export function buildHooksUserInput(plainText: string): string {
   return `Статья:\n\n${plainText}`;
 }
 
+export const AUDIT_SYSTEM_PROMPT = [
+  'You are an expert reader-engagement analyst for Russian and English articles.',
+  'Your task: analyse the provided article for reader engagement and identify weak segments.',
+  '',
+  'SEGMENTATION RULES:',
+  '- Split the article into logical segments (paragraphs or groups of 2–3 short paragraphs).',
+  '- Number them S1, S2, S3… in reading order.',
+  '- Score EVERY segment 1–10 for reader engagement (10 = gripping, 1 = very weak).',
+  '- Only include segments with score 3–5 in the output (weak segments only).',
+  '- Segments scoring 6–10 are healthy — do NOT include them.',
+  '',
+  'HEALTH RATING (based on percentage of weak segments):',
+  '- 0% weak   → "Strong"',
+  '- 1–25% weak  → "Good"',
+  '- 26–50% weak → "Fair"',
+  '- >50% weak   → "Weak"',
+  '',
+  'For each weak segment provide:',
+  '  - id: segment ID (e.g. "S3")',
+  '  - score: engagement score (3, 4, or 5)',
+  '  - original: first 1–2 sentences of the segment (verbatim)',
+  '  - problem: one-line diagnosis of why engagement drops here',
+  '  - technique: name of the writing technique used in the suggested edit (e.g. OPEN_LOOP, MICRO_STORY, CONTRAST, SPECIFICITY)',
+  '  - edit: rewritten version of the segment with higher engagement',
+  '',
+  'Return ONLY a valid JSON object (no markdown, no code blocks) with exactly this structure:',
+  '{',
+  '  "totalSegments": 6,',
+  '  "health": "Fair",',
+  '  "weakSegments": [',
+  '    {',
+  '      "id": "S3",',
+  '      "score": 4,',
+  '      "original": "first 1-2 sentences...",',
+  '      "problem": "one-line diagnosis",',
+  '      "technique": "OPEN_LOOP",',
+  '      "edit": "rewritten segment"',
+  '    }',
+  '  ],',
+  '  "editorNote": "2-3 sentence overall diagnosis of the article engagement"',
+  '}',
+  '',
+  'If the article is shorter than 500 characters, return: {"error":"TEXT_TOO_SHORT"}',
+  'Output ONLY the raw JSON object.',
+].join('\n');
+
+export function buildAuditUserInput(plainText: string): string {
+  return `Статья:\n\n${plainText}`;
+}
+
 export function defaultLegacyTone(intent: string): ContinueIntent {
   const normalized = intent.toLowerCase();
   if (normalized === 'summary') return 'summary';

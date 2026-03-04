@@ -23,6 +23,7 @@ export interface EditorHandle {
   triggerRewrite: () => void;
   triggerContinue: () => void;
   triggerHooks: () => void;
+  triggerAudit: () => void;
 }
 
 function Spinner() {
@@ -279,6 +280,39 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ vi
     setActionMenuOpen(false);
   }
 
+  function requestAudit() {
+    if (!editor) return;
+    const actionState = getActionState();
+    if (!actionState.canSpellcheck) {
+      showCommandNote('Аудит доступен только для непустого текста после подключения к документу.');
+      return;
+    }
+
+    const state = useEditorStore.getState();
+    const aiReady = ensureAiReady();
+    if ('reason' in aiReady) {
+      showCommandNote(aiReady.reason);
+      return;
+    }
+
+    const plainText = editor.getText().trim();
+    if (plainText.length < 500) {
+      showCommandNote('Текст слишком короткий для аудита вовлечённости (минимум 500 символов).');
+      return;
+    }
+
+    const payload = {
+      postId: state.postId,
+      workspaceId: state.currentWorkspaceId as string,
+      version: state.currentVersion,
+      plainText,
+    };
+
+    rememberSuggestPayload('audit', payload);
+    send({ event: 'suggest.audit', data: payload });
+    setActionMenuOpen(false);
+  }
+
   function openContinueIntentMenu() {
     const actionState = getActionState();
     if (!actionState.canContinue) {
@@ -432,6 +466,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ vi
     triggerRewrite: requestRewrite,
     triggerContinue: openContinueIntentMenu,
     triggerHooks: requestHooks,
+    triggerAudit: requestAudit,
   }), [editor, send]);
 
   function handleIntentSelect(intent: 'summary' | 'example' | 'argument' | 'conclusion') {
@@ -464,7 +499,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ vi
     setIntentMenuOpen(false);
   }
 
-  function handleRetry(type: 'spellcheck' | 'rewrite' | 'continue' | 'hooks') {
+  function handleRetry(type: 'spellcheck' | 'rewrite' | 'continue' | 'hooks' | 'audit') {
     const aiReady = ensureAiReady();
     if ('reason' in aiReady) {
       showCommandNote(aiReady.reason);
@@ -649,7 +684,19 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ vi
                           </span>
                         </button>
                       )}
-                      {(lastSuggestPayloadByType.spellcheck || lastSuggestPayloadByType.rewrite || lastSuggestPayloadByType.continue || lastSuggestPayloadByType.hooks) && (
+                      {actionState.canSpellcheck && (
+                        <button
+                          className="px-3 py-2 text-sm rounded-lg text-zinc-200 hover:bg-zinc-800 flex items-center justify-between gap-2"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={requestAudit}
+                        >
+                          <span>Аудит</span>
+                          <span className="flex items-center gap-1.5">
+                            {aiLoadingByType.audit === 'loading' && <Spinner />}
+                          </span>
+                        </button>
+                      )}
+                      {(lastSuggestPayloadByType.spellcheck || lastSuggestPayloadByType.rewrite || lastSuggestPayloadByType.continue || lastSuggestPayloadByType.hooks || lastSuggestPayloadByType.audit) && (
                         <div className="h-px bg-white/[0.08] my-1" />
                       )}
                       {lastSuggestPayloadByType.spellcheck && (
@@ -686,6 +733,15 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ vi
                           onClick={() => handleRetry('hooks')}
                         >
                           <span>Повторить зацепки</span>
+                        </button>
+                      )}
+                      {lastSuggestPayloadByType.audit && (
+                        <button
+                          className="px-3 py-2 text-sm rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 flex items-center justify-between gap-2"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleRetry('audit')}
+                        >
+                          <span>Повторить аудит</span>
                         </button>
                       )}
                       {(actionState.canAccept || actionState.canReject) && <div className="h-px bg-white/[0.08] my-1" />}

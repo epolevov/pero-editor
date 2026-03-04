@@ -11,12 +11,14 @@ import {
   SuggestRewriteSchema,
   SuggestContinueSchema,
   SuggestHooksSchema,
+  SuggestAuditSchema,
   SuggestApplySchema,
   AiSettingsGetSchema,
   AiSettingsUpdateSchema,
   AiSettingsClearKeySchema,
 } from '../validators/ws-messages';
 import type {
+  AuditResponse,
   HooksResponse,
   PostUpdatedEvent,
   PostDeletedEvent,
@@ -176,6 +178,9 @@ export default class ApiGatewayWsService extends Service {
           break;
         case 'suggest.hooks':
           await this.handleSuggestHooks(ws, data);
+          break;
+        case 'suggest.audit':
+          await this.handleSuggestAudit(ws, data);
           break;
         case 'suggest.apply':
           await this.handleSuggestApply(ws, data);
@@ -551,6 +556,64 @@ export default class ApiGatewayWsService extends Service {
         postId: payload.postId,
         version: payload.version,
         type: 'hooks',
+        status: 'error',
+        message: err instanceof Error ? err.message : 'Internal error',
+      });
+      throw err;
+    }
+  }
+
+  private async handleSuggestAudit(
+    ws: WebSocket,
+    data: unknown,
+  ): Promise<void> {
+    const payload = validate(SuggestAuditSchema, data);
+    const workspaceId =
+      payload.workspaceId ??
+      await this.resolveWorkspaceIdForPost(ws, payload.postId);
+
+    this.sendSuggestLoading(ws, {
+      postId: payload.postId,
+      version: payload.version,
+      type: 'audit',
+      status: 'start',
+    });
+
+    try {
+      const result = await this.broker.call<
+        AuditResponse,
+        { plainText: string; workspaceId?: string }
+      >('ai.audit', { plainText: payload.plainText, workspaceId }, { timeout: 60000 });
+
+      await this.broker.call('suggestions.create', {
+        postId: payload.postId,
+        version: payload.version,
+        type: 'audit',
+        rangeFrom: 0,
+        rangeTo: 0,
+        payload: {
+          title: 'Аудит вовлечённости',
+          message: `Проанализировано ${result.totalSegments} сегм., ${result.weakSegments.length} требуют внимания`,
+          replacements: [],
+          segments: result.weakSegments,
+          editorNote: result.editorNote,
+          health: result.health,
+          totalSegments: result.totalSegments,
+          confidence: result.confidence,
+        },
+      });
+
+      this.sendSuggestLoading(ws, {
+        postId: payload.postId,
+        version: payload.version,
+        type: 'audit',
+        status: 'done',
+      });
+    } catch (err) {
+      this.sendSuggestLoading(ws, {
+        postId: payload.postId,
+        version: payload.version,
+        type: 'audit',
         status: 'error',
         message: err instanceof Error ? err.message : 'Internal error',
       });

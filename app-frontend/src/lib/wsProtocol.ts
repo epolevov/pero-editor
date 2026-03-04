@@ -1,5 +1,14 @@
-export type SuggestionType = 'spellcheck' | 'rewrite' | 'continue' | 'hooks';
+export type SuggestionType = 'spellcheck' | 'rewrite' | 'continue' | 'hooks' | 'audit';
 export type AiLoadingState = 'idle' | 'loading' | 'error';
+
+export interface AuditSegment {
+  id: string;
+  score: number;
+  original: string;
+  problem: string;
+  technique: string;
+  edit: string;
+}
 
 export interface SuggestionResult {
   id: string;
@@ -15,6 +24,11 @@ export interface SuggestionResult {
   confidence?: number;
   diff?: string;
   originalText?: string;
+  // audit-specific
+  segments?: AuditSegment[];
+  editorNote?: string;
+  health?: string;
+  totalSegments?: number;
 }
 
 export interface WSEnvelope<T = unknown> {
@@ -134,6 +148,13 @@ export interface PostDetailData {
 }
 
 export interface SuggestHooksData {
+  postId: string;
+  workspaceId: string;
+  version: number;
+  plainText: string;
+}
+
+export interface SuggestAuditData {
   postId: string;
   workspaceId: string;
   version: number;

@@ -88,6 +88,13 @@ export const SuggestHooksSchema = z.object({
   plainText: z.string().min(1, 'plainText is required'),
 });
 
+export const SuggestAuditSchema = z.object({
+  postId: z.string().min(1),
+  version: z.number().int().nonnegative(),
+  workspaceId: z.string().min(1).optional(),
+  plainText: z.string().min(1, 'plainText is required'),
+});
+
 export const AiSettingsGetSchema = z.object({
   workspaceId: z.string().min(1, 'workspaceId is required'),
 });
@@ -127,6 +134,7 @@ export type ValidatedSuggestRewrite = z.infer<typeof SuggestRewriteSchema>;
 export type ValidatedSuggestContinue = z.infer<typeof SuggestContinueSchema>;
 export type ValidatedSuggestApply = z.infer<typeof SuggestApplySchema>;
 export type ValidatedSuggestHooks = z.infer<typeof SuggestHooksSchema>;
+export type ValidatedSuggestAudit = z.infer<typeof SuggestAuditSchema>;
 export type ValidatedAiSettingsGet = z.infer<typeof AiSettingsGetSchema>;
 export type ValidatedAiSettingsUpdate = z.infer<typeof AiSettingsUpdateSchema>;
 export type ValidatedAiSettingsClearKey = z.infer<typeof AiSettingsClearKeySchema>;

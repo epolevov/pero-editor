@@ -102,6 +102,11 @@ export interface SuggestionResult {
   diff?: string;
   insertText?: string;
   confidence: number;
+  // audit-specific fields
+  segments?: AuditSegment[];
+  editorNote?: string;
+  health?: string;
+  totalSegments?: number;
 }
 
 export interface SuggestResultMessage {
@@ -118,7 +123,7 @@ export interface SuggestRemovedMessage {
 export interface SuggestLoadingMessage {
   postId: string;
   version: number;
-  type: 'spellcheck' | 'rewrite' | 'continue' | 'hooks';
+  type: 'spellcheck' | 'rewrite' | 'continue' | 'hooks' | 'audit';
   status: 'start' | 'done' | 'error';
   message?: string;
 }
@@ -278,6 +283,28 @@ export interface ContinueResponse {
 export interface HooksRequest {
   plainText: string;
   workspaceId?: string;
+}
+
+export interface AuditRequest {
+  plainText: string;
+  workspaceId?: string;
+}
+
+export interface AuditSegment {
+  id: string;
+  score: number;
+  original: string;
+  problem: string;
+  technique: string;
+  edit: string;
+}
+
+export interface AuditResponse {
+  totalSegments: number;
+  health: string;
+  weakSegments: AuditSegment[];
+  editorNote: string;
+  confidence: number;
 }
 
 export interface HooksHook {

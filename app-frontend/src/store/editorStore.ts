@@ -11,6 +11,7 @@ import {
   AuthorPostListItem,
   PostDetailData,
   PostListData,
+  SuggestAuditData,
   SuggestContinueData,
   SuggestHooksData,
   SuggestionResult,
@@ -44,6 +45,7 @@ type SuggestPayloadByType = {
   rewrite: SuggestRewriteData;
   continue: SuggestContinueData;
   hooks: SuggestHooksData;
+  audit: SuggestAuditData;
 };
 
 type Toast = {
@@ -211,6 +213,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     rewrite: 'idle',
     continue: 'idle',
     hooks: 'idle',
+    audit: 'idle',
   },
   lastErrorByType: {},
   lastSuggestPayloadByType: {},
@@ -479,6 +482,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           rewrite: 'idle',
           continue: 'idle',
           hooks: 'idle',
+          audit: 'idle',
         },
         lastErrorByType: {},
         lastSuggestPayloadByType: {},
@@ -731,6 +735,9 @@ export function getRetryEnvelope(type: SuggestionType): WSEnvelope | null {
   }
   if (type === 'hooks') {
     return { event: 'suggest.hooks', data: payload };
+  }
+  if (type === 'audit') {
+    return { event: 'suggest.audit', data: payload };
   }
   return { event: 'suggest.continue', data: payload };
 }

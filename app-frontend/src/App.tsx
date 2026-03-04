@@ -296,6 +296,7 @@ export default function App() {
                   onRewrite={() => editorRef.current?.triggerRewrite()}
                   onContinue={() => editorRef.current?.triggerContinue()}
                   onHooks={() => editorRef.current?.triggerHooks()}
+                  onAudit={() => editorRef.current?.triggerAudit()}
                   onOpenAiSettings={() => setAiSettingsModalOpen(true)}
                 />
               )}

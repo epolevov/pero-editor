@@ -1,13 +1,45 @@
-import { ArrowRight, RefreshCw, SpellCheck, Sparkles, Zap } from 'lucide-react';
+import { ArrowRight, BarChart2, RefreshCw, SpellCheck, Sparkles, Zap } from 'lucide-react';
 import { useEditorStore } from '../store/editorStore';
-import type { SuggestionResult } from '../lib/wsProtocol';
+import type { AuditSegment, SuggestionResult } from '../lib/wsProtocol';
 
 const TYPE_LABEL: Record<string, string> = {
   spellcheck: 'Орфография',
   rewrite: 'Переписать',
   continue: 'Продолжить',
   hooks: 'Зацепки',
+  audit: 'Аудит',
 };
+
+const HEALTH_BADGE: Record<string, { label: string; className: string }> = {
+  Weak: { label: 'Слабая', className: 'bg-red-500/20 text-red-400 border-red-500/30' },
+  Fair: { label: 'Средняя', className: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  Good: { label: 'Хорошая', className: 'bg-green-500/20 text-green-400 border-green-500/30' },
+  Strong: { label: 'Сильная', className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+};
+
+function AuditSegmentCard({ segment }: { segment: AuditSegment }) {
+  const scoreColor =
+    segment.score <= 3 ? 'text-red-400 border-red-500/30 bg-red-500/10' :
+    segment.score <= 4 ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
+    'text-yellow-400 border-yellow-500/30 bg-yellow-500/10';
+
+  return (
+    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5 flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded border ${scoreColor}`}>
+          {segment.id} · {segment.score}/10
+        </span>
+        <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">{segment.technique}</span>
+      </div>
+      <p className="text-xs text-zinc-500 line-clamp-2 italic">«{segment.original}»</p>
+      <p className="text-xs text-zinc-400">{segment.problem}</p>
+      <div className="px-2 py-1.5 rounded-lg bg-emerald-500/[0.06] border-l-2 border-emerald-500/30">
+        <span className="block text-[10px] text-emerald-400/60 uppercase tracking-wider mb-0.5 font-medium">Предложение</span>
+        <p className="text-xs text-zinc-300">{segment.edit}</p>
+      </div>
+    </div>
+  );
+}
 
 function Spinner() {
   return (
@@ -77,6 +109,7 @@ interface SuggestionsPanelProps {
   onRewrite?: () => void;
   onContinue?: () => void;
   onHooks?: () => void;
+  onAudit?: () => void;
   onOpenAiSettings?: () => void;
 }
 
@@ -87,6 +120,7 @@ export function SuggestionsPanel({
   onRewrite,
   onContinue,
   onHooks,
+  onAudit,
   onOpenAiSettings,
 }: SuggestionsPanelProps) {
   const {
@@ -181,6 +215,13 @@ export function SuggestionsPanel({
                   trigger: 'tab → Зацепки',
                   onClick: onHooks,
                 },
+                {
+                  icon: BarChart2,
+                  label: 'Аудит',
+                  description: 'Находит слабые сегменты и предлагает правки',
+                  trigger: 'tab → Аудит',
+                  onClick: onAudit,
+                },
               ] as const).map(({ icon: Icon, label, description, trigger, onClick }) => (
                 <button
                   key={label}
@@ -259,24 +300,70 @@ export function SuggestionsPanel({
                   </div>
                 )}
 
-                <div
-                  className={`mt-3 flex gap-2 transition-opacity ${
-                    isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                  }`}
-                >
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onAccept(s.id); }}
-                    className="flex-1 py-1.5 text-xs rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+                {s.type === 'audit' && (
+                  <div className="flex flex-col gap-2">
+                    {s.health && (
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${HEALTH_BADGE[s.health]?.className ?? 'bg-zinc-800 text-zinc-400 border-zinc-700'}`}>
+                          {HEALTH_BADGE[s.health]?.label ?? s.health}
+                        </span>
+                        {s.totalSegments != null && (
+                          <span className="text-xs text-zinc-500">{s.totalSegments} сегментов</span>
+                        )}
+                      </div>
+                    )}
+                    {s.segments && s.segments.length > 0 ? (
+                      <div className="flex flex-col gap-2">
+                        {s.segments.map((seg) => (
+                          <AuditSegmentCard key={seg.id} segment={seg} />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-zinc-500">Слабых сегментов не обнаружено.</p>
+                    )}
+                    {s.editorNote && (
+                      <div className="px-2.5 py-2 rounded-lg bg-zinc-900 border border-white/[0.06]">
+                        <span className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1 font-medium">Редакторская заметка</span>
+                        <p className="text-xs text-zinc-400">{s.editorNote}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {s.type !== 'audit' && (
+                  <div
+                    className={`mt-3 flex gap-2 transition-opacity ${
+                      isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    }`}
                   >
-                    Принять
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onReject(s.id); }}
-                    className="flex-1 py-1.5 text-xs rounded-lg bg-white/[0.04] text-zinc-400 border border-white/[0.06] hover:bg-white/[0.08] hover:text-zinc-300 transition-colors"
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onAccept(s.id); }}
+                      className="flex-1 py-1.5 text-xs rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+                    >
+                      Принять
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onReject(s.id); }}
+                      className="flex-1 py-1.5 text-xs rounded-lg bg-white/[0.04] text-zinc-400 border border-white/[0.06] hover:bg-white/[0.08] hover:text-zinc-300 transition-colors"
+                    >
+                      Отклонить
+                    </button>
+                  </div>
+                )}
+                {s.type === 'audit' && (
+                  <div
+                    className={`mt-3 flex gap-2 transition-opacity ${
+                      isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    }`}
                   >
-                    Отклонить
-                  </button>
-                </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onReject(s.id); }}
+                      className="flex-1 py-1.5 text-xs rounded-lg bg-white/[0.04] text-zinc-400 border border-white/[0.06] hover:bg-white/[0.08] hover:text-zinc-300 transition-colors"
+                    >
+                      Закрыть
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })

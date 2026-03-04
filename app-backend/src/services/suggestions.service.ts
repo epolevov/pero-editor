@@ -108,6 +108,10 @@ export default class SuggestionsService extends Service {
       diff: p['diff'] as string | undefined,
       insertText: p['insertText'] as string | undefined,
       confidence: (p['confidence'] as number | undefined) ?? 1.0,
+      segments: p['segments'] as SuggestionResult['segments'] | undefined,
+      editorNote: p['editorNote'] as string | undefined,
+      health: p['health'] as string | undefined,
+      totalSegments: p['totalSegments'] as number | undefined,
     };
 
     const event: SuggestionReadyEvent = { postId, version, suggestion: result };

@@ -9,6 +9,7 @@ import {
 import prisma from '../lib/prisma';
 import { decryptSecret } from '../lib/secrets';
 import {
+  buildAuditUserInput,
   buildHooksUserInput,
   buildRewriteUserInput,
   buildSpellcheckUserInput,
@@ -16,11 +17,15 @@ import {
   defaultLegacyTone,
   FALLBACK_TEMPLATES,
   HOOKS_SYSTEM_PROMPT,
+  AUDIT_SYSTEM_PROMPT,
   REWRITE_SYSTEM_PROMPT,
   SPELLCHECK_SYSTEM_PROMPT,
 } from '../lib/prompts';
 import { detectStorytelling } from '../lib/storytellingDetector';
 import type {
+  AuditRequest,
+  AuditResponse,
+  AuditSegment,
   ContinueRequest,
   ContinueResponse,
   HooksHook,
@@ -97,6 +102,10 @@ export default class AiService extends Service {
 
         hooks: {
           handler: (ctx: Context<HooksRequest>) => this.generateHooks(ctx),
+        },
+
+        audit: {
+          handler: (ctx: Context<AuditRequest>) => this.generateAudit(ctx),
         },
 
         // New style-aware actions.
@@ -303,6 +312,42 @@ export default class AiService extends Service {
       const result = parseHooksResult(completion.text);
       if (!result) {
         throw new Errors.MoleculerError('Failed to parse hooks result from AI', 500, 'AI_PARSE_ERROR');
+      }
+
+      return { ...result, confidence: 0.9 };
+    } catch (error) {
+      if (error instanceof OpenRouterConfigError) {
+        throw new Errors.MoleculerError(error.message, 500, 'AI_CONFIG_ERROR');
+      }
+      throw error;
+    }
+  }
+
+  private async generateAudit(ctx: Context<AuditRequest>): Promise<AuditResponse> {
+    const { plainText, workspaceId } = ctx.params;
+
+    if (plainText.trim().length < 500) {
+      throw new Errors.MoleculerClientError(
+        'Text is too short for engagement audit (minimum 500 characters).',
+        422,
+        'TEXT_TOO_SHORT',
+      );
+    }
+
+    try {
+      const config = await this.resolveOpenRouterConfig(workspaceId);
+      const client = createOpenRouterClient({ ...config, timeoutMs: Math.max(config.timeoutMs, 60000) });
+
+      const completion = await client.createChatCompletion({
+        userContent: buildAuditUserInput(plainText),
+        temperature: 0.7,
+        maxTokens: 2048,
+        systemPrompt: AUDIT_SYSTEM_PROMPT,
+      });
+
+      const result = parseAuditResult(completion.text);
+      if (!result) {
+        throw new Errors.MoleculerError('Failed to parse audit result from AI', 500, 'AI_PARSE_ERROR');
       }
 
       return { ...result, confidence: 0.9 };
@@ -575,6 +620,58 @@ function parseHooksResult(rawText: string): {
       : { hookIndex: 0, reason: '' };
 
   return { hooks, styleAnalysis, recommendation };
+}
+
+function parseAuditResult(rawText: string): {
+  totalSegments: number;
+  health: string;
+  weakSegments: AuditSegment[];
+  editorNote: string;
+} | null {
+  const cleaned = rawText.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    return null;
+  }
+
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  const rec = parsed as Record<string, unknown>;
+
+  if (rec['error'] === 'TEXT_TOO_SHORT') return null;
+
+  const totalSegments = typeof rec['totalSegments'] === 'number' ? rec['totalSegments'] as number : 0;
+  const health = typeof rec['health'] === 'string' ? rec['health'] as string : 'Fair';
+  const editorNote = typeof rec['editorNote'] === 'string' ? rec['editorNote'] as string : '';
+
+  const weakRaw = rec['weakSegments'];
+  if (!Array.isArray(weakRaw)) return null;
+
+  const weakSegments: AuditSegment[] = [];
+  for (const item of weakRaw) {
+    if (typeof item !== 'object' || item === null) continue;
+    const s = item as Record<string, unknown>;
+    if (
+      typeof s['id'] !== 'string' ||
+      typeof s['score'] !== 'number' ||
+      typeof s['original'] !== 'string' ||
+      typeof s['problem'] !== 'string' ||
+      typeof s['technique'] !== 'string' ||
+      typeof s['edit'] !== 'string'
+    ) continue;
+    weakSegments.push({
+      id: s['id'] as string,
+      score: s['score'] as number,
+      original: s['original'] as string,
+      problem: s['problem'] as string,
+      technique: s['technique'] as string,
+      edit: s['edit'] as string,
+    });
+  }
+
+  return { totalSegments, health, weakSegments, editorNote };
 }
 
 function parseSpellcheckIssues(
