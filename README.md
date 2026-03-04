@@ -10,8 +10,8 @@ An AI-powered writing assistant for macOS. Spellcheck, rewrite, and continue you
 
 | Architecture | Link |
 |---|---|
-| Apple Silicon (M1/M2/M3) | [Pero Editor-0.1.1-arm64.dmg](https://pero-dist-dmg.website.yandexcloud.net/Pero%20Editor-0.1.1-arm64.dmg) |
-| Intel (x64) | [Pero Editor-0.1.1.dmg](https://pero-dist-dmg.website.yandexcloud.net/Pero%20Editor-0.1.1.dmg) |
+| Apple Silicon (M1/M2/M3) | [Pero Editor-0.1.2-arm64.dmg](https://pero-dist-dmg.website.yandexcloud.net/Pero%20Editor-0.1.2-arm64.dmg) |
+| Intel (x64) | [Pero Editor-0.1.2.dmg](https://pero-dist-dmg.website.yandexcloud.net/Pero%20Editor-0.1.2.dmg) |
 
 The app includes auto-update — new versions install automatically.
 

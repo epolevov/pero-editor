@@ -1,8 +1,8 @@
-# Building the macOS DMG
+# Building macOS Release Artifacts
 
 ## Prerequisites
 
-- macOS (required for `.dmg` target)
+- macOS (required for `.dmg` / `.zip` targets)
 - Node.js 20+
 - Backend compiled (`app-backend/dist/` must exist)
 
@@ -29,7 +29,7 @@ npm run dist
 1. `vite build --config vite.main.config.ts` → `dist/main/main.js`
 2. `vite build --config vite.preload.config.ts` → `dist/preload/preload.js`
 3. `vite build --config vite.renderer.config.ts` → `dist/renderer/` (React app)
-4. `electron-builder --mac dmg` → packages everything
+4. `electron-builder --mac` → packages everything
 
 ### Output
 
@@ -37,6 +37,8 @@ npm run dist
 dist-electron/
 ├── Pero Editor-0.1.0.dmg          # Distributable installer
 ├── Pero Editor-0.1.0.dmg.blockmap # For delta updates
+├── Pero Editor-0.1.0-arm64-mac.zip # Required by macOS auto-updater
+├── Pero Editor-0.1.0-arm64-mac.zip.blockmap
 ├── latest-mac.yml                  # Auto-updater manifest
 └── mac/
     └── Pero Editor.app/            # Unpacked app bundle
@@ -79,5 +81,6 @@ iconutil -c icns icon.iconset -o build/icon.icns
 ## Notes
 
 - No code signing is configured (no Apple Developer ID required)
+- Build pipeline runs ad-hoc re-sign in `scripts/adhoc-sign.cjs` so ShipIt can validate update bundles
 - macOS Gatekeeper will show a warning on first open — users can bypass with right-click → Open
 - For internal distribution this is acceptable

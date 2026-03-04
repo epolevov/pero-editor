@@ -1,5 +1,6 @@
 appId: com.pero-editor.desktop
 productName: Pero Editor
+afterSign: scripts/adhoc-sign.cjs
 
 directories:
   output: dist-electron
@@ -14,6 +15,8 @@ files:
 mac:
   target:
     - target: dmg
+      arch: [x64, arm64]
+    - target: zip
       arch: [x64, arm64]
   category: public.app-category.productivity
 

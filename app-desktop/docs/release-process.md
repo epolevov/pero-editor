@@ -4,11 +4,12 @@
 
 Auto-updates use `electron-updater` with the `generic` S3 provider.
 No Squirrel or Sparkle — just static files on S3.
+The desktop build runs ad-hoc re-sign (`scripts/adhoc-sign.cjs`) to keep macOS ShipIt update validation happy.
 
 The update flow:
 1. App starts → `autoUpdater.checkForUpdatesAndNotify()`
 2. electron-updater fetches `<S3_URL>/latest-mac.yml`
-3. If a newer version is found, the DMG is downloaded silently in the background
+3. If a newer version is found, the ZIP is downloaded silently in the background
 4. A dialog prompts the user to restart and install
 
 ## One-time S3 Setup
@@ -46,6 +47,10 @@ S3_URL="s3://pero-editor-releases/updates"
 
 aws s3 cp "dist-electron/Pero Editor-${VERSION}.dmg" "${S3_URL}/"
 aws s3 cp "dist-electron/Pero Editor-${VERSION}.dmg.blockmap" "${S3_URL}/"
+aws s3 cp "dist-electron/Pero Editor-${VERSION}-arm64-mac.zip" "${S3_URL}/"
+aws s3 cp "dist-electron/Pero Editor-${VERSION}-arm64-mac.zip.blockmap" "${S3_URL}/"
+aws s3 cp "dist-electron/Pero Editor-${VERSION}-mac.zip" "${S3_URL}/"
+aws s3 cp "dist-electron/Pero Editor-${VERSION}-mac.zip.blockmap" "${S3_URL}/"
 aws s3 cp dist-electron/latest-mac.yml "${S3_URL}/"
 ```
 
@@ -63,10 +68,10 @@ Expected output:
 ```yaml
 version: 0.2.0
 files:
-  - url: Pero Editor-0.2.0.dmg
+  - url: Pero Editor-0.2.0-arm64-mac.zip
     sha512: <hash>
     size: <bytes>
-path: Pero Editor-0.2.0.dmg
+path: Pero Editor-0.2.0-arm64-mac.zip
 sha512: <hash>
 releaseDate: '2026-03-01T...'
 ```
