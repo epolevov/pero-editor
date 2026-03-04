@@ -31,6 +31,7 @@ const defaultPostsLimit = Number(import.meta.env.VITE_POST_LIST_LIMIT || 20);
 export function useWebSocket(url: string = defaultWsUrl) {
   const ws = useRef<WebSocket | null>(null);
   const requestedInitialOpenRef = useRef(false);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const send = useCallback((msg: WSEnvelope) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
@@ -93,7 +94,10 @@ export function useWebSocket(url: string = defaultWsUrl) {
         state.setAuthorPosts(data);
         if (!requestedInitialOpenRef.current) {
           requestedInitialOpenRef.current = true;
-          if (data.items.length > 0) {
+          const currentPostId = state.postId || state.expectedDetailPostId;
+          if (currentPostId) {
+            sendOpen(currentPostId);
+          } else if (data.items.length > 0) {
             sendOpen(data.items[0].postId);
           } else {
             sendOpen();
@@ -246,7 +250,7 @@ export function useWebSocket(url: string = defaultWsUrl) {
       useEditorStore.getState().setWsConnected(false);
       setWsApiTransport(null);
       rejectAllPending('WebSocket closed');
-      setTimeout(connect, 3000);
+      reconnectTimerRef.current = setTimeout(connect, 3000);
     };
 
     ws.current.onerror = (err) => {
@@ -257,7 +261,13 @@ export function useWebSocket(url: string = defaultWsUrl) {
   useEffect(() => {
     connect();
     return () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       if (ws.current) {
+        ws.current.onclose = null;
+        ws.current.onmessage = null;
         ws.current.close();
       }
       setWsApiTransport(null);
