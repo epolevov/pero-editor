@@ -1,6 +1,6 @@
 {
   "name": "pero-editor-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pero Editor — macOS desktop app",
   "private": true,
   "main": "dist/main/main.js",
