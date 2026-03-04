@@ -130,7 +130,7 @@ export function SuggestionsPanel({
                 <Sparkles className="h-4 w-4 text-zinc-500" />
               </div>
               <p className="text-sm text-zinc-400 font-medium mb-1">AI-помощник</p>
-              <p className="text-xs text-zinc-600">Нажмите ✦ у курсора, чтобы начать</p>
+              <p className="text-xs text-zinc-600">Нажмите Tab в редакторе, чтобы начать</p>
             </div>
 
             {currentWorkspaceId && aiSettings.workspaceId === currentWorkspaceId && !aiSettings.hasApiKey && (
@@ -154,21 +154,21 @@ export function SuggestionsPanel({
                   icon: SpellCheck,
                   label: 'Орфография',
                   description: 'Проверит весь текст на ошибки',
-                  trigger: '✦ → Орфография',
+                  trigger: 'tab → Орфография',
                   onClick: onSpellcheck,
                 },
                 {
                   icon: RefreshCw,
                   label: 'Переписать',
                   description: 'Выделите нужный фрагмент',
-                  trigger: '✦ → Переписать',
+                  trigger: 'tab → Переписать',
                   onClick: onRewrite,
                 },
                 {
                   icon: ArrowRight,
                   label: 'Продолжить',
                   description: 'Поставьте курсор, выберите стиль',
-                  trigger: '✦ → Продолжить',
+                  trigger: 'tab → Продолжить',
                   onClick: onContinue,
                 },
               ] as const).map(({ icon: Icon, label, description, trigger, onClick }) => (

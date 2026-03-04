@@ -553,18 +553,6 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ vi
                     className="fixed z-40"
                     style={{ left: `${cursorUiPos.x}px`, transform: 'translateY(-50%)' }}
                 >
-                  <button
-                    className="h-5 px-1.5 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-white/[0.1] transition-all text-[10px] font-medium tracking-wide opacity-40 hover:opacity-100"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      updateCursorUiPosition();
-                      setIntentMenuOpen(false);
-                      setActionMenuOpen((prev) => !prev);
-                    }}
-                  >
-                    tab
-                  </button>
-
                   {actionMenuOpen && (
                     <div className="mt-2 w-60 bg-zinc-900 border border-white/[0.08] rounded-xl p-2 flex flex-col gap-1">
                       {actionState.canSpellcheck && (
