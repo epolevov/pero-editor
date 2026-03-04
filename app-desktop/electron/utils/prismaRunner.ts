@@ -51,12 +51,31 @@ export function runMigrations(dbUrl: string): void {
     ? resolvePackagedNode()
     : { bin: findNodeBinary(), env: {} }
 
+  // When packaged, point Prisma to the bundled engine binary so it doesn't
+  // try to copy from cache into the read-only app bundle (EROFS on DMG).
+  const engineEnv: NodeJS.ProcessEnv = {}
+  if (app.isPackaged) {
+    const engineName =
+      process.arch === 'arm64'
+        ? 'libquery_engine-darwin-arm64.dylib.node'
+        : 'libquery_engine-darwin.dylib.node'
+    engineEnv.PRISMA_QUERY_ENGINE_LIBRARY = path.join(
+      process.resourcesPath,
+      'backend',
+      'node_modules',
+      '.prisma',
+      'client',
+      engineName,
+    )
+  }
+
   log.info('Running prisma migrate deploy...')
   try {
     execFileSync(nodeRuntime.bin, [prismaCliPath, 'migrate', 'deploy', '--schema', schemaPath], {
       env: {
         ...process.env,
         ...nodeRuntime.env,
+        ...engineEnv,
         DATABASE_URL: dbUrl,
       },
       stdio: 'pipe',
