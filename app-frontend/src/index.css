@@ -1,0 +1,57 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+.drag { -webkit-app-region: drag; }
+.no-drag { -webkit-app-region: no-drag; }
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+.editor-shell .tiptap {
+  color: rgb(212 212 216);
+  letter-spacing: 0;
+}
+
+.editor-shell[data-view='desktop'] .tiptap {
+  font-size: 1rem;
+  line-height: 1.75rem;
+}
+
+.editor-shell[data-view='desktop'] .tiptap p {
+  margin-bottom: 1rem;
+}
+
+.editor-shell[data-view='mobile'] .tiptap {
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+.editor-shell[data-view='mobile'] .tiptap p {
+  margin-bottom: 0.75rem;
+}
+
+.editor-shell .tiptap p.is-editor-empty:first-child::before {
+  color: rgb(113 113 122);
+}
+
+.editor-shell[data-view='mobile'] .tiptap p.is-editor-empty:first-child::before {
+  font-size: 0.875rem;
+}
+
+.spellcheck-highlight {
+  border-bottom: 2px solid rgb(239 68 68);
+  background-color: rgb(239 68 68 / 0.1);
+  cursor: pointer;
+}
+
+@keyframes pero-rewrite-pulse {
+  0%, 100% { background-color: rgba(16, 185, 129, 0.08); }
+  50%       { background-color: rgba(16, 185, 129, 0.18); }
+}
+
+.rewrite-loading-highlight {
+  animation: pero-rewrite-pulse 1.4s ease-in-out infinite;
+  border-radius: 2px;
+}

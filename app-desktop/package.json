@@ -1,0 +1,25 @@
+{
+  "name": "pero-editor-desktop",
+  "version": "0.1.0",
+  "description": "Pero Editor — macOS desktop app",
+  "private": true,
+  "main": "dist/main/main.js",
+  "scripts": {
+    "dev": "vite build --config vite.main.config.ts && vite build --config vite.preload.config.ts && vite build --config vite.renderer.config.ts && electron .",
+    "build": "vite build --config vite.main.config.ts && vite build --config vite.preload.config.ts && vite build --config vite.renderer.config.ts",
+    "dist": "npm run build && electron-builder --mac dmg"
+  },
+  "dependencies": {
+    "electron-log": "^5.2.0",
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "@tailwindcss/vite": "^4.0.0",
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.0",
+    "vite-plugin-electron": "^0.28.8"
+  }
+}

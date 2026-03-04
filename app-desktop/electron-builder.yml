@@ -1,0 +1,53 @@
+appId: com.pero-editor.desktop
+productName: Pero Editor
+
+directories:
+  output: dist-electron
+  buildResources: build
+
+files:
+  - dist/main/**
+  - dist/preload/**
+  - dist/renderer/**
+  - package.json
+
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  category: public.app-category.productivity
+
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+extraResources:
+  - from: "../app-backend/dist"
+    to: "backend/dist"
+    filter:
+      - "**/*"
+  - from: "../app-backend/prisma"
+    to: "backend/prisma"
+    filter:
+      - "**/*"
+  - from: "../app-backend/node_modules/.prisma"
+    to: "backend/node_modules/.prisma"
+    filter:
+      - "**/*"
+  - from: "../app-backend/node_modules/@prisma"
+    to: "backend/node_modules/@prisma"
+    filter:
+      - "**/*"
+  - from: "../app-backend/node_modules/prisma"
+    to: "backend/node_modules/prisma"
+    filter:
+      - "**/*"
+
+publish:
+  provider: generic
+  url: "https://pero-dist-dmg.website.yandexcloud.net/"

@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-electron/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Database
+prisma/dev.db
+prisma/dev.db-journal
+
+# Test coverage
+coverage/
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# Claude AI metadata
+.claude/
+
+# Compiled TypeScript artifacts (backend)
+app-backend/moleculer.config.js
+app-backend/moleculer.config.js.map
+app-backend/moleculer.config.d.ts
+app-backend/moleculer.config.d.ts.map

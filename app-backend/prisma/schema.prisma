@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  ownerUserId String
+  name        String
+  createdAt   DateTime @default(now())
+
+  users     User[]
+  posts     Post[]
+  aiSetting WorkspaceAiSetting?
+
+  @@map("workspace")
+}
+
+model WorkspaceAiSetting {
+  id                        String   @id @default(cuid())
+  workspaceId               String   @unique
+  openrouterApiKeyEncrypted String?
+  openrouterModel           String?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("workspace_ai_setting")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  workspaceId String
+  email       String?
+  name        String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  posts     Post[]
+
+  @@map("user")
+}
+
+model Post {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  authorUserId   String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  currentVersion Int       @default(0)
+  deletedAt      DateTime?
+
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author      User          @relation(fields: [authorUserId], references: [id])
+  versions    PostVersion[]
+  suggestions Suggestion[]
+
+  @@map("post")
+}
+
+model PostVersion {
+  id          String   @id @default(cuid())
+  postId      String
+  version     Int
+  contentJson String
+  plainText   String
+  createdAt   DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, version])
+  @@map("post_version")
+}
+
+model Suggestion {
+  id        String           @id @default(cuid())
+  postId    String
+  version   Int
+  type      String
+  rangeFrom Int
+  rangeTo   Int
+  payload   String
+  status    String           @default("pending")
+  createdAt DateTime         @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, status])
+  @@map("suggestion")
+}
