@@ -80,7 +80,7 @@ iconutil -c icns icon.iconset -o build/icon.icns
 
 ## Notes
 
-- No code signing is configured (no Apple Developer ID required)
-- Build pipeline runs ad-hoc re-sign in `scripts/adhoc-sign.cjs` so ShipIt can validate update bundles
+- Without Apple Developer ID signing, macOS ShipIt auto-update cannot reliably apply future versions
+- Use a stable signing identity for releases that should support in-app auto-updates
 - macOS Gatekeeper will show a warning on first open — users can bypass with right-click → Open
 - For internal distribution this is acceptable

@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import log from 'electron-log'
 import * as path from 'path'
+import { spawnSync } from 'child_process'
 import { findFreePort } from './utils/portFinder'
 import { getOrCreateEncryptionKey } from './utils/configStore'
 import { runMigrations } from './utils/prismaRunner'
@@ -12,6 +13,7 @@ autoUpdater.logger = log
 
 let mainWindow: BrowserWindow | null = null
 let isStarting = false
+let hasShownUpdateSignatureError = false
 
 async function createWindow(wsPort: number): Promise<void> {
   const preloadPath = app.isPackaged
@@ -66,7 +68,52 @@ function setupAutoUpdater(): void {
 
   autoUpdater.on('error', (err) => {
     log.error('Auto-updater error:', err)
+
+    const message = String(err)
+    const isSignatureError = message.includes('Code signature') || message.includes('code signature')
+    if (isSignatureError && !hasShownUpdateSignatureError) {
+      hasShownUpdateSignatureError = true
+      dialog
+        .showMessageBox({
+          type: 'warning',
+          title: 'Не удалось установить обновление',
+          message: 'Автообновление отклонено проверкой подписи macOS.',
+          detail:
+            'Текущая сборка установлена без стабильной подписи для ShipIt. Установите новую версию вручную из DMG.',
+          buttons: ['OK'],
+          defaultId: 0,
+        })
+        .catch((dialogErr) => log.warn('Failed to show update signature error dialog:', dialogErr))
+    }
   })
+}
+
+function canUseMacAutoUpdater(): boolean {
+  if (!app.isPackaged || process.platform !== 'darwin') {
+    return true
+  }
+
+  const appBundlePath = path.resolve(process.execPath, '../../..')
+  const result = spawnSync('codesign', ['-d', '-r-', appBundlePath], {
+    encoding: 'utf8',
+  })
+
+  const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`
+  if (result.status !== 0) {
+    log.warn('Unable to inspect app signature. Auto-updater disabled.', output)
+    return false
+  }
+
+  // Ad-hoc signing yields a cdhash designated requirement that changes each build.
+  const hasCdhashRequirement = output.includes('# designated => cdhash')
+  if (hasCdhashRequirement) {
+    log.warn(
+      'Auto-updater disabled: app has ad-hoc/unstable designated requirement (cdhash).'
+    )
+    return false
+  }
+
+  return true
 }
 
 async function main(): Promise<void> {
@@ -85,6 +132,10 @@ async function main(): Promise<void> {
   await backendRunner.start({ port: wsPort, dbUrl, encryptionKey })
 
   await createWindow(wsPort)
+
+  if (!canUseMacAutoUpdater()) {
+    return
+  }
 
   setupAutoUpdater()
   autoUpdater.checkForUpdatesAndNotify().catch((err) => {

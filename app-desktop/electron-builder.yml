@@ -1,6 +1,5 @@
 appId: com.pero-editor.desktop
 productName: Pero Editor
-afterSign: scripts/adhoc-sign.cjs
 
 directories:
   output: dist-electron

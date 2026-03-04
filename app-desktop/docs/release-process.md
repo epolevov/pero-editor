@@ -4,7 +4,8 @@
 
 Auto-updates use `electron-updater` with the `generic` S3 provider.
 No Squirrel or Sparkle — just static files on S3.
-The desktop build runs ad-hoc re-sign (`scripts/adhoc-sign.cjs`) to keep macOS ShipIt update validation happy.
+For macOS, auto-updates require a stable code signing identity (Apple Developer ID).
+Ad-hoc signing is not enough for version-to-version updates because ShipIt validates signing requirements.
 
 The update flow:
 1. App starts → `autoUpdater.checkForUpdatesAndNotify()`
