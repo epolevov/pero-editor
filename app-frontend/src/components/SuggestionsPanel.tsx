@@ -1,4 +1,4 @@
-import { ArrowRight, RefreshCw, SpellCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, RefreshCw, SpellCheck, Sparkles, Zap } from 'lucide-react';
 import { useEditorStore } from '../store/editorStore';
 import type { SuggestionResult } from '../lib/wsProtocol';
 
@@ -6,6 +6,7 @@ const TYPE_LABEL: Record<string, string> = {
   spellcheck: 'Орфография',
   rewrite: 'Переписать',
   continue: 'Продолжить',
+  hooks: 'Зацепки',
 };
 
 function Spinner() {
@@ -75,6 +76,7 @@ interface SuggestionsPanelProps {
   onSpellcheck?: () => void;
   onRewrite?: () => void;
   onContinue?: () => void;
+  onHooks?: () => void;
   onOpenAiSettings?: () => void;
 }
 
@@ -84,6 +86,7 @@ export function SuggestionsPanel({
   onSpellcheck,
   onRewrite,
   onContinue,
+  onHooks,
   onOpenAiSettings,
 }: SuggestionsPanelProps) {
   const {
@@ -171,6 +174,13 @@ export function SuggestionsPanel({
                   trigger: 'tab → Продолжить',
                   onClick: onContinue,
                 },
+                {
+                  icon: Zap,
+                  label: 'Зацепки',
+                  description: 'Генерирует 3 крючка для начала статьи',
+                  trigger: 'tab → Зацепки',
+                  onClick: onHooks,
+                },
               ] as const).map(({ icon: Icon, label, description, trigger, onClick }) => (
                 <button
                   key={label}
@@ -231,6 +241,21 @@ export function SuggestionsPanel({
                         {r}
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {s.type === 'hooks' && s.replacements && (
+                  <div className="flex flex-col gap-1.5">
+                    <RewriteVariants
+                      suggestion={s}
+                      onSelectVariant={(index) => setSelectedVariant(s.id, index)}
+                    />
+                    {s.diff && (
+                      <div className="px-2.5 py-1.5 rounded-lg bg-emerald-500/[0.06] border border-emerald-500/20">
+                        <span className="block text-[10px] text-emerald-400/60 uppercase tracking-wider mb-0.5 font-medium">Рекомендация</span>
+                        <p className="text-xs text-emerald-300/80">{s.diff}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 

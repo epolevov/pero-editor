@@ -122,6 +122,39 @@ export function buildRewriteUserInput(selectedText: string, contextText: string)
   return `Контекст (для понимания темы и тона):\n${contextText}\n\nПерепиши выделенный фрагмент в 4 стилях:\n${selectedText}`;
 }
 
+export const HOOKS_SYSTEM_PROMPT = [
+  'You are an expert copywriter specializing in hook creation for articles and long-form content.',
+  'Analyze the provided article text and generate exactly 3 distinct hook variants for the very beginning of the article.',
+  '',
+  'Hook requirements:',
+  '- Length: 1–3 sentences (40–120 words max per hook)',
+  '- Must create an "open loop" — a question or tension the reader wants to resolve',
+  '- Must match the style and tone of the original text',
+  '- Must NOT start with: "In today\'s world...", "Everyone knows...", "It\'s no secret that..."',
+  '- Must NOT repeat the title if present',
+  '- Generate hooks in the same language as the article',
+  '- Technique names must also be in the same language as the article',
+  '',
+  'Return ONLY a valid JSON object (no markdown, no code blocks) with exactly this structure:',
+  '{',
+  '  "styleAnalysis": "2–3 sentences describing core idea, target reader, style, tone",',
+  '  "hooks": [',
+  '    { "technique": "technique name", "text": "hook text" },',
+  '    { "technique": "technique name", "text": "hook text" },',
+  '    { "technique": "technique name", "text": "hook text" }',
+  '  ],',
+  '  "recommendation": { "hookIndex": 0, "reason": "1 sentence why this hook fits best" }',
+  '}',
+  '',
+  'hookIndex must be 0, 1, or 2 (0-based index into hooks array).',
+  'If the article text is shorter than 300 characters, return: {"error":"TEXT_TOO_SHORT"}',
+  'Output ONLY the raw JSON object.',
+].join('\n');
+
+export function buildHooksUserInput(plainText: string): string {
+  return `Статья:\n\n${plainText}`;
+}
+
 export function defaultLegacyTone(intent: string): ContinueIntent {
   const normalized = intent.toLowerCase();
   if (normalized === 'summary') return 'summary';

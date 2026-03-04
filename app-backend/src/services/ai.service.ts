@@ -9,11 +9,13 @@ import {
 import prisma from '../lib/prisma';
 import { decryptSecret } from '../lib/secrets';
 import {
+  buildHooksUserInput,
   buildRewriteUserInput,
   buildSpellcheckUserInput,
   buildStyleAwareUserInput,
   defaultLegacyTone,
   FALLBACK_TEMPLATES,
+  HOOKS_SYSTEM_PROMPT,
   REWRITE_SYSTEM_PROMPT,
   SPELLCHECK_SYSTEM_PROMPT,
 } from '../lib/prompts';
@@ -21,6 +23,9 @@ import { detectStorytelling } from '../lib/storytellingDetector';
 import type {
   ContinueRequest,
   ContinueResponse,
+  HooksHook,
+  HooksRequest,
+  HooksResponse,
   RewriteRequest,
   RewriteResponse,
   RewriteVariant,
@@ -88,6 +93,10 @@ export default class AiService extends Service {
         },
         continue: {
           handler: (ctx: Context<LegacyContinueRequest>) => this.continueLegacy(ctx),
+        },
+
+        hooks: {
+          handler: (ctx: Context<HooksRequest>) => this.generateHooks(ctx),
         },
 
         // New style-aware actions.
@@ -267,6 +276,42 @@ export default class AiService extends Service {
     }
 
     return this.rewriteHeuristic(selectedText);
+  }
+
+  private async generateHooks(ctx: Context<HooksRequest>): Promise<HooksResponse> {
+    const { plainText, workspaceId } = ctx.params;
+
+    if (plainText.trim().length < 300) {
+      throw new Errors.MoleculerClientError(
+        'Text is too short for hook generation (minimum 300 characters).',
+        422,
+        'TEXT_TOO_SHORT',
+      );
+    }
+
+    try {
+      const config = await this.resolveOpenRouterConfig(workspaceId);
+      const client = createOpenRouterClient({ ...config, timeoutMs: Math.max(config.timeoutMs, 55000) });
+
+      const completion = await client.createChatCompletion({
+        userContent: buildHooksUserInput(plainText),
+        temperature: 0.8,
+        maxTokens: 1024,
+        systemPrompt: HOOKS_SYSTEM_PROMPT,
+      });
+
+      const result = parseHooksResult(completion.text);
+      if (!result) {
+        throw new Errors.MoleculerError('Failed to parse hooks result from AI', 500, 'AI_PARSE_ERROR');
+      }
+
+      return { ...result, confidence: 0.9 };
+    } catch (error) {
+      if (error instanceof OpenRouterConfigError) {
+        throw new Errors.MoleculerError(error.message, 500, 'AI_CONFIG_ERROR');
+      }
+      throw error;
+    }
   }
 
   private rewriteHeuristic(selectedText: string): RewriteResponse {
@@ -475,6 +520,61 @@ export default class AiService extends Service {
       },
     };
   }
+}
+
+function parseHooksResult(rawText: string): {
+  hooks: HooksHook[];
+  styleAnalysis: string;
+  recommendation: { hookIndex: number; reason: string };
+} | null {
+  const cleaned = rawText.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    return null;
+  }
+
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  const rec = parsed as Record<string, unknown>;
+
+  if (rec['error'] === 'TEXT_TOO_SHORT') return null;
+
+  const hooksRaw = rec['hooks'];
+  if (!Array.isArray(hooksRaw) || hooksRaw.length < 3) return null;
+
+  const hooks: HooksHook[] = [];
+  for (const h of hooksRaw.slice(0, 3)) {
+    if (typeof h !== 'object' || h === null) return null;
+    const item = h as Record<string, unknown>;
+    if (typeof item['technique'] !== 'string' || typeof item['text'] !== 'string') return null;
+    hooks.push({ technique: item['technique'] as string, text: item['text'] as string });
+  }
+
+  const styleAnalysis = typeof rec['styleAnalysis'] === 'string' ? rec['styleAnalysis'] as string : '';
+
+  const recRaw = rec['recommendation'];
+  const recommendation =
+    typeof recRaw === 'object' && recRaw !== null
+      ? {
+          hookIndex: Math.max(
+            0,
+            Math.min(
+              2,
+              typeof (recRaw as Record<string, unknown>)['hookIndex'] === 'number'
+                ? (recRaw as Record<string, unknown>)['hookIndex'] as number
+                : 0,
+            ),
+          ),
+          reason:
+            typeof (recRaw as Record<string, unknown>)['reason'] === 'string'
+              ? (recRaw as Record<string, unknown>)['reason'] as string
+              : '',
+        }
+      : { hookIndex: 0, reason: '' };
+
+  return { hooks, styleAnalysis, recommendation };
 }
 
 function parseSpellcheckIssues(

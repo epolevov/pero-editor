@@ -118,7 +118,7 @@ export interface SuggestRemovedMessage {
 export interface SuggestLoadingMessage {
   postId: string;
   version: number;
-  type: 'spellcheck' | 'rewrite' | 'continue';
+  type: 'spellcheck' | 'rewrite' | 'continue' | 'hooks';
   status: 'start' | 'done' | 'error';
   message?: string;
 }
@@ -272,6 +272,23 @@ export interface ContinueRequest {
 
 export interface ContinueResponse {
   insertText: string;
+  confidence: number;
+}
+
+export interface HooksRequest {
+  plainText: string;
+  workspaceId?: string;
+}
+
+export interface HooksHook {
+  technique: string;
+  text: string;
+}
+
+export interface HooksResponse {
+  hooks: HooksHook[];
+  styleAnalysis: string;
+  recommendation: { hookIndex: number; reason: string };
   confidence: number;
 }
 

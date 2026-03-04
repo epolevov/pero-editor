@@ -295,6 +295,7 @@ export default function App() {
                   onSpellcheck={() => editorRef.current?.triggerSpellcheck()}
                   onRewrite={() => editorRef.current?.triggerRewrite()}
                   onContinue={() => editorRef.current?.triggerContinue()}
+                  onHooks={() => editorRef.current?.triggerHooks()}
                   onOpenAiSettings={() => setAiSettingsModalOpen(true)}
                 />
               )}

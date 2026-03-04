@@ -198,7 +198,7 @@ export function useWebSocket(url: string = defaultWsUrl) {
 
         if (errorEvent?.startsWith('suggest.')) {
           const type = errorEvent.split('.')[1] as SuggestionType | undefined;
-          if (type && (type === 'spellcheck' || type === 'rewrite' || type === 'continue')) {
+          if (type && (type === 'spellcheck' || type === 'rewrite' || type === 'continue' || type === 'hooks')) {
             state.setAiLoadingState({
               type,
               status: 'error',

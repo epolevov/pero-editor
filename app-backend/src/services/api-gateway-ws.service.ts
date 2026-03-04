@@ -10,12 +10,14 @@ import {
   SuggestSpellcheckSchema,
   SuggestRewriteSchema,
   SuggestContinueSchema,
+  SuggestHooksSchema,
   SuggestApplySchema,
   AiSettingsGetSchema,
   AiSettingsUpdateSchema,
   AiSettingsClearKeySchema,
 } from '../validators/ws-messages';
 import type {
+  HooksResponse,
   PostUpdatedEvent,
   PostDeletedEvent,
   SuggestionReadyEvent,
@@ -172,6 +174,9 @@ export default class ApiGatewayWsService extends Service {
         case 'suggest.continue':
           await this.handleSuggestContinue(ws, data);
           break;
+        case 'suggest.hooks':
+          await this.handleSuggestHooks(ws, data);
+          break;
         case 'suggest.apply':
           await this.handleSuggestApply(ws, data);
           break;
@@ -273,6 +278,13 @@ export default class ApiGatewayWsService extends Service {
     >('posts.get', payload);
 
     this.send(ws, 'post.detail', result);
+
+    // Join the room so the socket receives realtime events (suggestions, updates) for this post
+    this.joinRoom(ws, result.postId);
+    const meta = this.clientMeta.get(ws) ?? {};
+    meta.postId = result.postId;
+    meta.workspaceId = result.workspaceId || meta.workspaceId;
+    this.clientMeta.set(ws, meta);
   }
 
   private async handlePostDelete(ws: WebSocket, data: unknown): Promise<void> {
@@ -478,6 +490,67 @@ export default class ApiGatewayWsService extends Service {
         postId: payload.postId,
         version: payload.version,
         type: 'continue',
+        status: 'error',
+        message: err instanceof Error ? err.message : 'Internal error',
+      });
+      throw err;
+    }
+  }
+
+  private async handleSuggestHooks(
+    ws: WebSocket,
+    data: unknown,
+  ): Promise<void> {
+    const payload = validate(SuggestHooksSchema, data);
+    const workspaceId =
+      payload.workspaceId ??
+      await this.resolveWorkspaceIdForPost(ws, payload.postId);
+
+    this.sendSuggestLoading(ws, {
+      postId: payload.postId,
+      version: payload.version,
+      type: 'hooks',
+      status: 'start',
+    });
+
+    try {
+      const result = await this.broker.call<
+        HooksResponse,
+        { plainText: string; workspaceId?: string }
+      >('ai.hooks', { plainText: payload.plainText, workspaceId }, { timeout: 60000 });
+
+      // Place recommended hook first so it's pre-selected (index 0)
+      const recommended = result.hooks[result.recommendation.hookIndex];
+      const rest = result.hooks.filter((_, i) => i !== result.recommendation.hookIndex);
+      const orderedHooks = [recommended, ...rest];
+
+      await this.broker.call('suggestions.create', {
+        postId: payload.postId,
+        version: payload.version,
+        type: 'hooks',
+        rangeFrom: 0,
+        rangeTo: 0,
+        payload: {
+          title: 'Зацепки для статьи',
+          message: result.styleAnalysis,
+          replacements: orderedHooks.map((h) => h.text),
+          styles: orderedHooks.map((h) => h.technique),
+          diff: result.recommendation.reason,
+          confidence: result.confidence,
+        },
+      });
+
+      this.sendSuggestLoading(ws, {
+        postId: payload.postId,
+        version: payload.version,
+        type: 'hooks',
+        status: 'done',
+      });
+    } catch (err) {
+      this.sendSuggestLoading(ws, {
+        postId: payload.postId,
+        version: payload.version,
+        type: 'hooks',
         status: 'error',
         message: err instanceof Error ? err.message : 'Internal error',
       });

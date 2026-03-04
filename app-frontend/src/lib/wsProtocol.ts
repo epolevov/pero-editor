@@ -1,4 +1,4 @@
-export type SuggestionType = 'spellcheck' | 'rewrite' | 'continue';
+export type SuggestionType = 'spellcheck' | 'rewrite' | 'continue' | 'hooks';
 export type AiLoadingState = 'idle' | 'loading' | 'error';
 
 export interface SuggestionResult {
@@ -131,6 +131,13 @@ export interface PostDetailData {
   plainText: string;
   version: number;
   meta?: Record<string, unknown>;
+}
+
+export interface SuggestHooksData {
+  postId: string;
+  workspaceId: string;
+  version: number;
+  plainText: string;
 }
 
 export interface SuggestLoadingData {

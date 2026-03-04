@@ -22,6 +22,7 @@ export interface EditorHandle {
   triggerSpellcheck: () => void;
   triggerRewrite: () => void;
   triggerContinue: () => void;
+  triggerHooks: () => void;
 }
 
 function Spinner() {
@@ -245,6 +246,39 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ vi
     setActionMenuOpen(false);
   }
 
+  function requestHooks() {
+    if (!editor) return;
+    const actionState = getActionState();
+    if (!actionState.canSpellcheck) {
+      showCommandNote('Зацепки доступны только для непустого текста после подключения к документу.');
+      return;
+    }
+
+    const state = useEditorStore.getState();
+    const aiReady = ensureAiReady();
+    if ('reason' in aiReady) {
+      showCommandNote(aiReady.reason);
+      return;
+    }
+
+    const plainText = editor.getText().trim();
+    if (plainText.length < 300) {
+      showCommandNote('Текст слишком короткий для генерации зацепок (минимум 300 символов).');
+      return;
+    }
+
+    const payload = {
+      postId: state.postId,
+      workspaceId: state.currentWorkspaceId as string,
+      version: state.currentVersion,
+      plainText,
+    };
+
+    rememberSuggestPayload('hooks', payload);
+    send({ event: 'suggest.hooks', data: payload });
+    setActionMenuOpen(false);
+  }
+
   function openContinueIntentMenu() {
     const actionState = getActionState();
     if (!actionState.canContinue) {
@@ -314,6 +348,14 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ vi
       editor.view.dispatch(
         editor.state.tr.insertText(replacement, from, to),
       );
+    }
+
+    if (suggestion.type === 'hooks' && suggestion.replacements?.length) {
+      const variantIndex = suggestion.selectedVariantIndex ?? 0;
+      const hookText = suggestion.replacements[variantIndex] ?? suggestion.replacements[0];
+      const { schema, tr } = editor.state;
+      const hookParagraph = schema.nodes.paragraph.create(null, schema.text(hookText));
+      editor.view.dispatch(tr.insert(0, hookParagraph));
     }
 
     if (suggestion.type === 'continue' && suggestion.insertText) {
@@ -389,6 +431,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ vi
     triggerSpellcheck: requestSpellcheck,
     triggerRewrite: requestRewrite,
     triggerContinue: openContinueIntentMenu,
+    triggerHooks: requestHooks,
   }), [editor, send]);
 
   function handleIntentSelect(intent: 'summary' | 'example' | 'argument' | 'conclusion') {
@@ -421,7 +464,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ vi
     setIntentMenuOpen(false);
   }
 
-  function handleRetry(type: 'spellcheck' | 'rewrite' | 'continue') {
+  function handleRetry(type: 'spellcheck' | 'rewrite' | 'continue' | 'hooks') {
     const aiReady = ensureAiReady();
     if ('reason' in aiReady) {
       showCommandNote(aiReady.reason);
@@ -594,7 +637,19 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ vi
                           </span>
                         </button>
                       )}
-                      {(lastSuggestPayloadByType.spellcheck || lastSuggestPayloadByType.rewrite || lastSuggestPayloadByType.continue) && (
+                      {actionState.canSpellcheck && (
+                        <button
+                          className="px-3 py-2 text-sm rounded-lg text-zinc-200 hover:bg-zinc-800 flex items-center justify-between gap-2"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={requestHooks}
+                        >
+                          <span>Зацепки</span>
+                          <span className="flex items-center gap-1.5">
+                            {aiLoadingByType.hooks === 'loading' && <Spinner />}
+                          </span>
+                        </button>
+                      )}
+                      {(lastSuggestPayloadByType.spellcheck || lastSuggestPayloadByType.rewrite || lastSuggestPayloadByType.continue || lastSuggestPayloadByType.hooks) && (
                         <div className="h-px bg-white/[0.08] my-1" />
                       )}
                       {lastSuggestPayloadByType.spellcheck && (
@@ -622,6 +677,15 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ vi
                           onClick={() => handleRetry('continue')}
                         >
                           <span>Повторить продолжение</span>
+                        </button>
+                      )}
+                      {lastSuggestPayloadByType.hooks && (
+                        <button
+                          className="px-3 py-2 text-sm rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 flex items-center justify-between gap-2"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleRetry('hooks')}
+                        >
+                          <span>Повторить зацепки</span>
                         </button>
                       )}
                       {(actionState.canAccept || actionState.canReject) && <div className="h-px bg-white/[0.08] my-1" />}
