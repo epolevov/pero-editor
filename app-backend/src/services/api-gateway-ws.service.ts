@@ -278,7 +278,10 @@ export default class ApiGatewayWsService extends Service {
   private async handlePostDelete(ws: WebSocket, data: unknown): Promise<void> {
     const payload = validate(PostDeleteSchema, data);
     await this.broker.call('posts.delete', { postId: payload.postId });
-    // response will arrive via the post.deleted event broadcast
+    // Broadcast goes only to room members; the requester may not be in this post's
+    // room (e.g. deleting from the sidebar while viewing another post), so send
+    // directly as well. applyPostDeleted on the client is idempotent.
+    this.send(ws, 'post.deleted', { postId: payload.postId });
   }
 
   private async handleSuggestSpellcheck(
